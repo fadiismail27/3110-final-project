@@ -1,3 +1,3 @@
 Tim Adeyemi (ota4)
-Yoseph Enddawoke (ye38)
-Fadi Isamli (fmi4)
+Yoseph Endawoke (ye38)
+Fadi Ismail (fmi4)
