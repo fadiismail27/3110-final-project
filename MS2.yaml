@@ -1,0 +1,37 @@
+---
+# Members of your group.
+group:  
+  - name: Tim Adeyemi
+    netid: ota4
+  - name: Yoseph Endawoke
+    netid: ye38
+  - name: Fadi Ismail
+    netid: fmi4
+
+# Your PM.
+pm:
+  name: Joyce Shen
+  netid: js3695
+
+# Set to false if you don't want your gallery entry to be public.
+publish: false
+
+# Pithy title
+title: "Terminal Texas Hold'em"
+
+# OK if this is a Cornell Github link, but public gallery viewers won't be able to see it.
+git-repo: "https://github.com/fadiismail27/3110-final-project"
+
+# Replace the URL with your own demo video.
+demo-video-url: "https://youtu.be/k5T5-RHumVc"
+
+# Write a short, attention-grabbing description of your project.
+desc: >
+  Our project is a terminal-based Texas Hold’em Poker game built in OCaml.
+  Players are dealt cards and compete in turn-based rounds against simulated
+  opponents. The game supports basic poker logic including card dealing,
+  hand evaluation, and winner determination. Opponents behave using simple
+  randomized strategies based on hand strength, creating a believable game
+  experience. Designed with modular OCaml architecture and a clean terminal
+  UI, the game is both a fun challenge and a demonstration of functional
+  programming principles.
