@@ -1,2 +1,3 @@
 (library
- (name final_project))
+ (name final_project)
+ (modules Card Game Player Ui))
