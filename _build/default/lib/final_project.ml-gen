@@ -9,5 +9,8 @@ module Game = Final_project__Game
 (** @canonical Final_project.Player *)
 module Player = Final_project__Player
 
+(** @canonical Final_project.Round *)
+module Round = Final_project__Round
+
 (** @canonical Final_project.Ui *)
 module Ui = Final_project__Ui
