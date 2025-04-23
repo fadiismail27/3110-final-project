@@ -15,3 +15,5 @@ val create_game : string list -> int -> t
 
 val deal_initial_hands :
   Player.t list -> Card.t list -> Player.t list * Card.t list
+
+val is_game_over : t -> bool
