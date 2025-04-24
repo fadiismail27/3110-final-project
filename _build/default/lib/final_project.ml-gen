@@ -6,6 +6,9 @@ module Card = Final_project__Card
 (** @canonical Final_project.Game *)
 module Game = Final_project__Game
 
+(** @canonical Final_project.Hand *)
+module Hand = Final_project__Hand
+
 (** @canonical Final_project.Player *)
 module Player = Final_project__Player
 
