@@ -1,1 +1,1 @@
-lib/Game.ml: Card List Player
+lib/Game.pp.ml: Bisect Card List Player

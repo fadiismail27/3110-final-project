@@ -1,1 +1,1 @@
-lib/Ui.mli: Card Game Player
+lib/Ui.pp.mli: Card Game Player
