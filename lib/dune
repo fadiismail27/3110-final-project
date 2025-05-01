@@ -1,5 +1,3 @@
 (library
  (name final_project)
- (modules Card Game Player Ui round)
- (instrumentation
-  (backend bisect_ppx)))
+ (modules Card Game Player Ui Hand))
