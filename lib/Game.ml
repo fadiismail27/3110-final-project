@@ -50,3 +50,9 @@ let deal_initial_hands players deck =
         | _ -> failwith "Not enough cards in deck to deal"
   in
   deal_cards players deck []
+
+  let is_game_over g =
+    (* Ends the game if all players are out of chips or all but one folded *)
+    let active_players = List.filter (fun p -> p.chips > 0) g.players in
+    List.length active_players <= 1
+  

@@ -1,3 +1,4 @@
 (test
  (name test_final_project)
+  (modules test_final_project)
  (libraries ounit2 final_project))
