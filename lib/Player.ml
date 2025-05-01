@@ -29,3 +29,13 @@ let is_all_in p = p.is_all_in
 let get_hand p = p.hand
 let get_current_bet p = p.current_bet
 let get_id p = p.id
+
+let fold player =
+  { player with folded = true }
+
+let bet player amount =
+  if amount > player.chips then
+    raise (Invalid_argument "Insufficient chips")
+  else
+    { player with chips = player.chips - amount }
+
