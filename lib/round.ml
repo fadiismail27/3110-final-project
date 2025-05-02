@@ -39,10 +39,10 @@ let play_round (state : Game.t) : Game.t =
 
   { state with players = updated_players } *)
   open Game
-  open Player
+  open Ui
   
-  let reset_folds players =
-    List.map (fun p -> { p with folded = false }) players
+  let reset_folds (players : Player.t list) =
+    List.map (fun p -> Player.set_folded p false) players
   
   let play_round (state : Game.t) : Game.t =
     print_endline "\nStarting a new round...";
@@ -71,7 +71,7 @@ let play_round (state : Game.t) : Game.t =
       ) players
     in
   
-    let active_players = List.filter (fun p -> not p.folded) updated_players in
+    let active_players = List.filter (fun p -> Player.is_folded p = false) updated_players in
     let winner =
       match active_players with
       | [] -> List.hd updated_players
@@ -85,11 +85,48 @@ let play_round (state : Game.t) : Game.t =
     let updated_players =
       List.map
         (fun p ->
-          if p.id = winner.id then { p with chips = p.chips + 100 }
+          if Player.get_id p = Player.get_id winner then Player.update_chips p 100 (* Use getter and updater *)
           else p)
         updated_players
     in
   
     let updated_players = reset_folds updated_players in
     { state with players = updated_players }
+  
+  let play_hand_stages (state : Game.t) : Game.t =
+    print_endline "\n=====================";
+    print_endline "   Starting New Hand ";
+    print_endline "=====================";
+  
+    (* 1. Prepare for new hand (shuffle, deal, reset state) *)
+    let hand_state = Game.new_hand state in 
+    print_endline "-- Pre-Flop --";
+    Ui.print_game_state hand_state 0; (* Show player hands and initial state *)
+    print_string "Press Enter to deal the Flop...";
+    ignore (read_line ());
+  
+    (* 2. Deal Flop *)
+    let state_after_flop_deal = Game.reveal_community_cards hand_state 3 in
+    print_endline "\n-- Flop --";
+    Ui.print_game_state state_after_flop_deal 0; (* Show flop cards *)
+     print_string "Press Enter to deal the Turn...";
+     ignore (read_line ());
+  
+    (* 3. Deal Turn *)
+    let state_after_turn_deal = Game.reveal_community_cards state_after_flop_deal 1 in
+    print_endline "\n-- Turn --";
+    Ui.print_game_state state_after_turn_deal 0; (* Show turn card *)
+    print_string "Press Enter to deal the River...";
+    ignore (read_line ());
+    
+    (* 4. Deal River *)
+    let state_after_river_deal = Game.reveal_community_cards state_after_turn_deal 1 in
+    print_endline "\n-- River --";
+    Ui.print_game_state state_after_river_deal 0; (* Show river card *)
+    
+    (* No betting, no winner determination yet *)
+    print_endline "\nHand Stages Complete.";
+  
+    (* Return the state after the river *)
+    state_after_river_deal 
   
