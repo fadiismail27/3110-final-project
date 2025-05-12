@@ -10,8 +10,9 @@ type t = {
   suit : suit;
 }
 
-
+(** [String_of_card] turns the card [t] into a string*)
 val string_of_card : t -> string
+(** [create_deck] initializes a list of cards*)
 val create_deck : unit -> t list
 val int_to_rank : int -> rank
 val string_of_rank : rank -> string

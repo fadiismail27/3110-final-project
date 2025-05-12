@@ -4,15 +4,16 @@ open Player
 
 let print_community_cards cc =
   print_string "Community Cards: ";
-  match cc with
-  | [] -> print_string "[ ] [ ] [ ]"
-  | [ a ] -> Printf.printf "[ %s ] [ ] [ ]" (Card.string_of_card a)
-  | [ a; b ] ->
-      Printf.printf "[ %s ] [ %s ] [ ]" (Card.string_of_card a)
-        (Card.string_of_card b)
-  | a :: b :: c :: _ ->
-      Printf.printf "[ %s ] [ %s ] [ %s ]" (Card.string_of_card a)
-        (Card.string_of_card b) (Card.string_of_card c)
+  let card_strings = List.map Card.string_of_card cc in
+  let num_revealed = List.length card_strings in
+  (* Ensure we don't try to create negative placeholders if somehow > 5 cards *)
+  let num_placeholders = max 0 (5 - num_revealed) in 
+  let placeholders = List.init num_placeholders (fun _ -> "[ ]") in
+  (* Format revealed cards and append placeholders *)
+  let display_cards = List.map (fun s -> "[ " ^ s ^ " ]") card_strings @ placeholders in
+  (* Ensure exactly 5 slots are printed, taking only the first 5 if > 5 *)
+  let final_display = List.filteri (fun i _ -> i < 5) display_cards in 
+  print_string (String.concat " " final_display)
 
 let print_player is_current is_show_hand idx p =
   Printf.printf "%d. %s ($%d): " idx (Player.get_name p) (Player.get_chips p);
