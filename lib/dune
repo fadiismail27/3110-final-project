@@ -1,5 +1,6 @@
 (library
  (name final_project)
+ (modules Card Game Player Ui Hand Round)
+ (libraries ANSITerminal)
  (instrumentation
-  (backend bisect_ppx))
- (modules Card Game Player Ui Hand Round))
+  (backend bisect_ppx)))

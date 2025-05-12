@@ -1,7 +1,7 @@
 (executable
  (public_name final_project)
  (name main)
- (libraries final_project))
+ (libraries final_project ANSITerminal))
 
                                            
 ; (executables
