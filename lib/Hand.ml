@@ -214,27 +214,34 @@ let evaluate_hand cards =
     failwith "evaluate_hand requires exactly 7 cards"
   else
     let five_card_combinations = combinations 5 cards in
-    let rec find_best_hand hands best_hand =
-      match hands with
-      | [] -> best_hand
-      | current_hand :: rest ->
-          let current_rank = eval_5_card_hand current_hand in
-          let new_best = if compare_hands current_rank best_hand > 0 then current_rank else best_hand in
-          find_best_hand rest new_best
-    in
-    find_best_hand five_card_combinations (HighCard [])
+    match five_card_combinations with
+    | [] -> failwith "Cannot evaluate hand from zero combinations" (* Should not happen with 7 cards *)
+    | first_combo :: rest_combos ->
+        let initial_best_rank = eval_5_card_hand first_combo in
+        let rec find_best_hand hands current_best_rank =
+          match hands with
+          | [] -> current_best_rank
+          | current_hand_cards :: rest ->
+              let current_eval_rank = eval_5_card_hand current_hand_cards in
+              let new_best = if compare_hands current_eval_rank current_best_rank > 0 then current_eval_rank else current_best_rank in
+              find_best_hand rest new_best
+        in
+        find_best_hand rest_combos initial_best_rank
 
 let best_hands players =
-  let evaluated_hands =
-    List.map (fun (name, cards) -> (name, evaluate_hand cards)) players
+  let evaluated_hands = 
+    List.map (fun (name, cards) -> (name, evaluate_hand cards)) players 
   in
-  let best_rank =
-    List.fold_left
-      (fun best (_, rank) ->
-        if compare_hands rank best > 0 then rank else best)
-      (HighCard []) evaluated_hands
-  in
-  List.filter (fun (_, rank) -> compare_hands rank best_rank = 0) evaluated_hands
+  match evaluated_hands with
+  | [] -> [] (* No players, no best hands *)
+  | (first_player_name, first_player_rank) :: rest_evaluated_hands ->
+      let best_overall_rank = 
+        List.fold_left 
+          (fun current_best_rank (_, rank_to_compare) -> 
+            if compare_hands rank_to_compare current_best_rank > 0 then rank_to_compare else current_best_rank)
+          first_player_rank rest_evaluated_hands
+      in
+      List.filter (fun (_, rank) -> compare_hands rank best_overall_rank = 0) evaluated_hands
 
 let string_of_hand_rank = function
   | HighCard cards ->

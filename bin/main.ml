@@ -35,7 +35,10 @@ let rec game_loop current_state =
       () (* End game *)
   | _ -> (* Continue playing *)
       (* Play one hand through its stages *)
-      let state_after_hand = Round.play_hand_stages current_state in
+      (* TODO: Implement dealer button rotation and proper blind values *)
+      let dealer_button_pos = 0 in (* Placeholder *)
+      let big_blind_val = 20 in    (* Placeholder *)
+      let state_after_hand = Round.play_hand_stages current_state dealer_button_pos big_blind_val in
 
       (* Pause and wait for Enter before starting the next hand *)
       print_string "\nPress Enter to start the next hand...";

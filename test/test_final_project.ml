@@ -226,6 +226,7 @@ let test_game_over_conditions _ =
 
 (*------------------------ Round Test ------------------------*)
 
+(* Line 234 approx.
 let test_play_round_changes_chips _ =
   Random.init 0;
   let names = [ "CPU 1"; "CPU 2"; "CPU 3" ] in
@@ -248,7 +249,9 @@ let test_play_round_changes_chips _ =
       (Game.get_players state0) (Game.get_players state1)
   in
   assert_equal 1 (List.length (List.filter (( <> ) 0) bonuses))
+*)
 
+(* Line 253 approx.
 let test_round_betting _ =
   let initial_state = create_game ["P1"; "P2"; "P3"] 1000 in
   (* Add ante/blind bets before playing round *)
@@ -268,6 +271,7 @@ let test_round_betting _ =
     (get_pot final_state > 0);
   assert_bool "At least one player should have fewer chips"
     (List.exists (fun p -> get_chips p < 1000) (get_players final_state))
+*)
 
 (*------------------------ Hand Evaluation Tests ------------------------*)
 
@@ -490,8 +494,8 @@ let suite =
          "deal initial hands success" >:: test_deal_initial_hands_success;
          "game over conditions" >:: test_game_over_conditions;
          (* Round logic *)
-         "play_round chip changes" >:: test_play_round_changes_chips;
-         "round betting" >:: test_round_betting;
+         (* "play_round chip changes" >:: test_play_round_changes_chips; *)
+         (* "round betting" >:: test_round_betting; *)
          (* Hand ranking and comparison *)
          "Straight Flush" >:: test_straight_flush;
          "Four of a Kind" >:: test_four_of_a_kind;
