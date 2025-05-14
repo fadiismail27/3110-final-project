@@ -48,3 +48,6 @@ val handle_player_raise : t -> int -> int -> t
 (** [distribute_pot gs winner_ids] distributes the main pot to the players identified
     by [winner_ids], updating their chips and resetting the pot. *)
 val distribute_pot : t -> int list -> t
+
+(** [cleanup_zero_chip_players gs] removes bot players with zero chips from the game. *)
+val cleanup_zero_chip_players : t -> t

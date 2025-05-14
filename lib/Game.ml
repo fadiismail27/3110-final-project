@@ -178,4 +178,13 @@ let distribute_pot (gs: t) (winner_ids: int list) : t =
     ) gs.players in
     
     { gs with players = updated_players; pot = 0 }  
-  
+
+(* --- Player Cleanup --- *)
+let cleanup_zero_chip_players (gs: t) : t =
+  let remaining_players = List.filter (fun p ->
+    if String.starts_with ~prefix:"CPU" (Player.get_name p) then
+      Player.get_chips p > 0 (* Keep CPU only if chips > 0 *)
+    else
+      true (* Keep human players regardless of chips for now, main game over handles them *)
+  ) gs.players in
+  { gs with players = remaining_players }  

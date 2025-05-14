@@ -300,9 +300,11 @@ let play_hand_stages (state : Game.t) (dealer_button_pos: int) (big_blind_val: i
           if List.length winner_ids > 0 then
             Game.distribute_pot state_after_river_betting winner_ids
           else
-            state_after_river_betting  
+            state_after_river_betting (* No winners, return state as is *)
         in
         Printf.printf "\n--- End of Hand ---";
-        Ui.print_game_state state_after_pot_distribution dealer_button_pos;  
-        state_after_pot_distribution
+        Ui.print_game_state state_after_pot_distribution dealer_button_pos; (* Display final chip counts *)
+        
+        (* Remove any bots with zero chips before returning to main game loop *)
+        Game.cleanup_zero_chip_players state_after_pot_distribution
   
