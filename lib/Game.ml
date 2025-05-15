@@ -127,19 +127,23 @@ let handle_player_raise (gs: t) (player_id: int) (new_total_bet_for_round: int) 
     current_bet = new_total_bet_for_round
   }
  
-let deal_initial_hands players deck =
-  let num_players = List.length players in
-  if List.length deck < num_players * 2 then failwith "Not enough cards to deal initial hands" else
-  let rec deal acc_players cards_to_deal remaining_deck =
-    match cards_to_deal with
-    | [] -> (List.rev acc_players, remaining_deck)
-    | p :: ps ->
-        let hand = take 2 remaining_deck in
-        let new_deck = drop 2 remaining_deck in
-        let updated_player = { p with hand = hand } in
-        deal (updated_player :: acc_players) ps new_deck
-  in
-  deal [] players deck
+  let deal_initial_hands players deck =
+    if players = [] then
+      invalid_arg "No players to deal to"
+    else if List.length deck < List.length players * 2 then
+      failwith "Not enough cards to deal initial hands"
+    else
+      let rec deal acc_players cards_to_deal remaining_deck =
+        match cards_to_deal with
+        | [] -> (List.rev acc_players, remaining_deck)
+        | p :: ps ->
+            let hand = take 2 remaining_deck in
+            let new_deck = drop 2 remaining_deck in
+            let updated_player = { p with hand = hand } in
+            deal (updated_player :: acc_players) ps new_deck
+      in
+      deal [] players deck
+  
  
 let new_hand (gs: t) : t =
   let reset_players = List.map Player.reset_for_new_hand gs.players in

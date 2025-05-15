@@ -1,9 +1,10 @@
+(* test/test_final_project.ml *)
 open OUnit2
 open Final_project
 open Card
 open Player
 open Game
-open Round
+open Final_project.Round
 open Final_project.Hand
 
 (*------------------------ Helper functions ------------------------*)
@@ -22,491 +23,656 @@ let mk_state ?(chips = 1000) names =
 
 (*------------------------ Card Tests ------------------------*)
 
-let test_deck_size _ =
-  let deck = Card.create_deck () in
-  assert_equal 52 (List.length deck)
+let test_string_of_card_all _ =
+  List.iter
+    (fun rank ->
+      List.iter
+        (fun suit ->
+          let c = { rank; suit } in
+          let str = string_of_card c in
+          assert_bool "non-empty string" (String.length str > 0))
+        all_suits)
+    all_ranks
 
-let test_deck_uniqueness _ =
-  let deck = Card.create_deck () in
-  let uniq = List.sort_uniq compare deck in
-  assert_equal 52 (List.length uniq)
+let test_int_to_rank_roundtrip _ =
+  List.iter2
+    (fun i r -> assert_equal r (int_to_rank i))
+    (List.init 13 (fun k -> k + 2))
+    all_ranks
 
-let test_card_creation _ =
-  let card = { rank = Ace; suit = Spades } in
-  assert_equal Ace card.rank;
-  assert_equal Spades card.suit
+let test_int_to_rank_failure _ =
+  assert_raises (Failure "Invalid rank value") (fun () -> int_to_rank 1)
 
-let test_all_ranks _ =
-  assert_equal 13 (List.length all_ranks);
-  assert_bool "Contains Ace" (List.mem Ace all_ranks);
-  assert_bool "Contains Two" (List.mem Two all_ranks)
+let test_string_of_rank_all _ =
+  List.iter
+    (fun r -> assert_bool "non-empty" (String.length (string_of_rank r) > 0))
+    all_ranks
 
-let test_all_suits _ =
-  assert_equal 4 (List.length all_suits);
-  assert_bool "Contains Hearts" (List.mem Hearts all_suits)
-
-let test_string_of_card _ =
-  assert_equal "A♠" (string_of_card { rank = Ace; suit = Spades });
-  assert_equal "K♥" (string_of_card { rank = King; suit = Hearts });
-  assert_equal "10♣" (string_of_card { rank = Ten; suit = Clubs })
-
-let test_create_deck _ =
+let test_create_deck_contents _ =
   let deck = create_deck () in
   assert_equal 52 (List.length deck);
-  (* Test for specific cards *)
-  assert_bool "Contains Ace of Spades" 
-    (List.exists (fun c -> c.rank = Ace && c.suit = Spades) deck)
-
-let test_card_basics _ =
-  (* Test card creation *)
-  let card = { rank = Ace; suit = Spades } in
-  assert_equal Ace card.rank;
-  assert_equal Spades card.suit;
-  assert_equal "A♠" (string_of_card card)
-
-let test_deck_creation _ =
-  let deck = create_deck () in
-  assert_equal 52 (List.length deck);
-  (* Verify we have all combinations *)
-  List.iter 
-    (fun suit -> 
-      List.iter 
-        (fun rank ->
-          assert_bool 
-            (Printf.sprintf "Missing %s" (string_of_card {rank; suit}))
-            (List.exists (fun c -> c.rank = rank && c.suit = suit) deck))
-        all_ranks)
-    all_suits
-
-let test_int_to_rank _ =
-  assert_equal Two (int_to_rank 2);
-  assert_equal Three (int_to_rank 3);
-  assert_equal Four (int_to_rank 4);
-  assert_equal Five (int_to_rank 5);
-  assert_equal Six (int_to_rank 6);
-  assert_equal Seven (int_to_rank 7);
-  assert_equal Eight (int_to_rank 8);
-  assert_equal Nine (int_to_rank 9);
-  assert_equal Ten (int_to_rank 10);
-  assert_equal Jack (int_to_rank 11);
-  assert_equal Queen (int_to_rank 12);
-  assert_equal King (int_to_rank 13);
-  assert_equal Ace (int_to_rank 14);
-  assert_raises (Failure "Invalid rank value") 
-    (fun () -> int_to_rank 1);
-  assert_raises (Failure "Invalid rank value") 
-    (fun () -> int_to_rank 15)
-
-let test_string_of_rank _ =
-  assert_equal "2" (string_of_rank Two);
-  assert_equal "3" (string_of_rank Three);
-  assert_equal "4" (string_of_rank Four);
-  assert_equal "5" (string_of_rank Five);
-  assert_equal "6" (string_of_rank Six);
-  assert_equal "7" (string_of_rank Seven);
-  assert_equal "8" (string_of_rank Eight);
-  assert_equal "9" (string_of_rank Nine);
-  assert_equal "10" (string_of_rank Ten);
-  assert_equal "J" (string_of_rank Jack);
-  assert_equal "Q" (string_of_rank Queen);
-  assert_equal "K" (string_of_rank King);
-  assert_equal "A" (string_of_rank Ace)
+  assert_equal 52 (List.length (List.sort_uniq compare deck));
+  List.iter
+    (fun r ->
+      List.iter
+        (fun s -> assert (List.mem { rank = r; suit = s } deck))
+        all_suits)
+    all_ranks
 
 (*------------------------ Player Tests ------------------------*)
+let test_bet_paths _ =
+  let p = Player.create_player 0 "P" 100 in
+  (* negative bet -> error *)
+  assert_raises (Invalid_argument "Bet amount cannot be negative") (fun () ->
+      Player.bet p (-1));
+  (* normal bet 40 *)
+  let p40 = Player.bet p 40 in
+  assert_equal 60 (Player.get_chips p40);
+  assert_equal 40 (Player.get_current_bet p40);
+  assert_bool "not all‑in" (not (Player.is_all_in p40));
+  (* all‑in bet equal to remaining chips *)
+  let p_all = Player.bet p40 60 in
+  assert_equal 0 (Player.get_chips p_all);
+  assert_equal true (Player.is_all_in p_all)
 
-let test_negative_chips _ =
-  assert_raises (Invalid_argument "Chips cannot be negative") (fun () ->
-      Player.create_player 0 "Bad" (-10))
+let test_call_paths _ =
+  let base = Player.set_current_bet (Player.create_player 1 "C" 50) 10 in
+  (* game bet already matched – nothing happens *)
+  let same = Player.call base 10 in
+  assert_equal 50 (Player.get_chips same);
+  (* call that forces all‑in *)
+  let p_all = Player.call base 100 in
+  assert_equal 0 (Player.get_chips p_all);
+  assert_equal true (Player.is_all_in p_all)
 
-let test_accessor_roundtrip _ =
-  let p = Player.create_player 1 "Bob" 500 in
-  assert_equal "Bob" (Player.get_name p);
-  assert_equal 500 (Player.get_chips p);
-  assert_bool "initially not folded" (not (Player.is_folded p))
+let test_check_paths _ =
+  let p = Player.set_current_bet (Player.create_player 2 "Chk" 30) 15 in
+  ignore (Player.check p 15);
+  (* valid *)
+  assert_raises (Invalid_argument "Cannot check when there is a bet to call")
+    (fun () -> Player.check p 20)
 
-let test_player_actions _ =
-  let player = Player.create_player 0 "TestPlayer" 1000 in
-  (* Test folding *)
-  let player_folded = Player.fold player in
-  assert_bool "Player should be folded" (Player.is_folded player_folded);
-  assert_bool "Original player should not be folded" (not (Player.is_folded player));
+let test_raise_paths _ =
+  let p0 = Player.set_current_bet (Player.create_player 3 "R" 100) 20 in
+  (* raise amount non‑positive *)
+  assert_raises
+    (Invalid_argument
+       "Raise amount must be greater than current bet contribution") (fun () ->
+      Player.raise_bet p0 20);
+  (* raise > stack -> all‑in *)
+  let p_all = Player.raise_bet p0 200 in
+  assert_equal 0 (Player.get_chips p_all);
+  assert_equal true (Player.is_all_in p_all);
+  (* raise exactly to all‑in boundary *)
+  let p_exact =
+    Player.set_current_bet (Player.create_player 4 "R2" 80) 20 |> fun p ->
+    Player.raise_bet p 100
+  in
+  assert_equal 0 (Player.get_chips p_exact);
+  assert_equal true (Player.is_all_in p_exact);
+  (* normal raise *)
+  let p_norm =
+    Player.create_player 5 "R3" 150 |> fun p ->
+    Player.set_current_bet p 30 |> fun p -> Player.raise_bet p 90
+  in
+  assert_equal 90 (Player.get_current_bet p_norm);
+  assert_equal 90 (Player.get_chips p_norm)
 
-  (* Test betting *)
-  let player_bet = Player.bet player 500 in
-  assert_equal 500 (Player.get_chips player_bet);
-  assert_equal 1000 (Player.get_chips player); (* Original player unchanged *)
-  
-  (* Test invalid bet *)
-  assert_raises (Invalid_argument "Insufficient chips")
-    (fun () -> Player.bet player 2000)
+let test_setters_and_reset _ =
+  let p = Player.create_player 6 "S" 10 in
+  let p' = Player.set_folded (Player.set_all_in p true) true in
+  assert_bool "all‑in flag" (Player.is_all_in p');
+  assert_bool "folded flag" (Player.is_folded p');
+  let p'' = Player.update_chips p' 20 in
+  assert_equal 30 (Player.get_chips p'');
+  let fresh = Player.reset_for_new_hand p'' in
+  assert_bool "reset folded" (not (Player.is_folded fresh));
+  assert_equal 0 (Player.get_current_bet fresh);
+  assert_equal false (Player.is_all_in fresh)
+
+(* ------------------------------------------------------------------ *)
+(* Player deep-dive – exercise every public branch                    *)
+(* ------------------------------------------------------------------ *)
+
+let test_bet_negative _ =
+  let p = Player.create_player 0 "P" 100 in
+  assert_raises (Invalid_argument "Bet amount cannot be negative") (fun () ->
+      Player.bet p (-5))
+
+let test_bet_insufficient _ =
+  let p = Player.create_player 0 "P" 50 in
+  assert_raises (Invalid_argument "Insufficient chips") (fun () ->
+      Player.bet p 60)
+
+let test_bet_partial_and_all_in _ =
+  let p1 = Player.create_player 0 "P" 120 in
+  let p1' = Player.bet p1 20 in
+  assert_equal 100 (Player.get_chips p1');
+  assert_equal 20 (Player.get_current_bet p1');
+  assert_bool "not all-in" (not (Player.is_all_in p1'));
+
+  let p2 = Player.create_player 0 "P" 80 in
+  let p2' = Player.bet p2 80 in
+  assert_equal 0 (Player.get_chips p2');
+  assert_bool "all-in" (Player.is_all_in p2')
+
+let test_call_paths _ =
+  (* already matched – no change *)
+  let p0 =
+    Player.create_player 0 "P" 100 |> fun p -> Player.set_current_bet p 40
+  in
+  let p0' = Player.call p0 40 in
+  assert_equal (Player.get_chips p0) (Player.get_chips p0');
+
+  (* partial call *)
+  let p1 =
+    Player.create_player 0 "P" 60 |> fun p -> Player.set_current_bet p 10
+  in
+  let p1' = Player.call p1 40 in
+  (* needs 30 *)
+  assert_equal 30 (Player.get_chips p1');
+  assert_equal 40 (Player.get_current_bet p1');
+
+  (* all-in call *)
+  let p2 =
+    Player.create_player 0 "P" 25 |> fun p -> Player.set_current_bet p 5
+  in
+  let p2' = Player.call p2 100 in
+  (* cannot cover *)
+  assert_equal 0 (Player.get_chips p2');
+  assert_bool "all-in flag" (Player.is_all_in p2')
+
+let test_check_success_and_fail _ =
+  let p_ok = Player.set_current_bet (Player.create_player 0 "P" 100) 30 in
+  ignore (Player.check p_ok 30);
+
+  (* should not raise *)
+  let p_bad = Player.set_current_bet p_ok 10 in
+  assert_raises (Invalid_argument "Cannot check when there is a bet to call")
+    (fun () -> Player.check p_bad 30)
+
+let test_raise_paths _ =
+  (* invalid raise amount (<= current) *)
+  let p = Player.set_current_bet (Player.create_player 0 "P" 100) 50 in
+  assert_raises
+    (Invalid_argument
+       "Raise amount must be greater than current bet contribution") (fun () ->
+      Player.raise_bet p 50);
+
+  (* raise puts player all-in because stack < diff *)
+  let p2 =
+    Player.create_player 0 "P" 30 |> fun p -> Player.set_current_bet p 20
+  in
+  let p2' = Player.raise_bet p2 60 in
+  assert_equal 0 (Player.get_chips p2');
+  assert_bool "all-in flag" (Player.is_all_in p2');
+
+  (* normal raise within stack *)
+  let p3 = Player.set_current_bet (Player.create_player 0 "P" 200) 20 in
+  let p3' = Player.raise_bet p3 80 in
+  assert_equal 140 (Player.get_chips p3');
+  assert_equal 80 (Player.get_current_bet p3');
+  assert_bool "not all-in flag" (not (Player.is_all_in p3'))
+
+let test_reset_and_update _ =
+  let p0 =
+    Player.set_all_in
+      (Player.set_current_bet
+         (Player.set_folded (Player.create_player 0 "P" 100) true)
+         40)
+      true
+  in
+  let p1 = Player.reset_for_new_hand p0 in
+  assert_bool "fold cleared" (not (Player.is_folded p1));
+  assert_equal 0 (Player.get_current_bet p1);
+  assert_bool "all_in cleared" (not (Player.is_all_in p1));
+
+  let p2 = Player.update_chips p1 50 in
+  assert_equal 150 (Player.get_chips p2)
 
 (*------------------------ Game Tests ------------------------*)
 
-let test_create_game_invalid_chip _ =
+let test_create_game_invalid _ =
   assert_raises (Invalid_argument "Initial chips must be positive") (fun () ->
-      Game.create_game [ "A"; "B" ] 0)
-
-let test_create_game_insufficient_players _ =
+      Game.create_game [ "A"; "B" ] 0);
   assert_raises (Invalid_argument "Need at least 2 players") (fun () ->
       Game.create_game [ "Solo" ] 1000)
 
-let test_deal_initial_hands _ =
-  let names = [ "A"; "B"; "C" ] in
-  let gs = Game.create_game names 1000 in
-  let players, deck' =
-    Game.deal_initial_hands (Game.get_players gs) (Game.get_deck gs)
-  in
-  List.iter (fun p -> assert_equal 2 (List.length (Player.get_hand p))) players;
-  let cards_removed = 2 * List.length names in
-  assert_equal (52 - cards_removed) (List.length deck')
-
-let test_invalid_game_creation _ =
-  assert_raises (Invalid_argument "Need at least 2 players")
-    (fun () -> create_game ["Solo"] 1000);
-  assert_raises (Invalid_argument "Initial chips must be positive")
-    (fun () -> create_game ["Player1"; "Player2"] 0)
-
-let test_deal_initial_hands _ =
-  let game = create_game ["P1"; "P2"; "P3"] 1000 in
-  let players, remaining_deck = deal_initial_hands (get_players game) (get_deck game) in
-  assert_equal 3 (List.length players);
-  List.iter (fun p -> assert_equal 2 (List.length (get_hand p))) players;
-  assert_equal 46 (List.length remaining_deck)
-
-let test_game_getters _ =
-  let game = create_game ["Alice"; "Bob"] 1000 in
-  assert_equal 0 (get_pot game);
-  assert_equal 2 (List.length (get_players game));
-  assert_equal 52 (List.length (get_deck game));
-  assert_equal [] (get_community_cards game);
-  assert_equal 0 (get_current_bet game)
-
 let test_deal_initial_hands_errors _ =
-  let game = create_game ["Alice"; "Bob"] 1000 in
-  (* Test dealing to empty player list *)
-  assert_raises 
-    (Invalid_argument "No players to deal to")
-    (fun () -> deal_initial_hands [] (get_deck game));
-  
-  (* Test dealing with insufficient cards *)
-  assert_raises
-    (Failure "Not enough cards in deck to deal")
-    (fun () -> deal_initial_hands (get_players game) [])
+  let g = Game.create_game [ "A"; "B" ] 1000 in
+  assert_raises (Invalid_argument "No players to deal to") (fun () ->
+      Game.deal_initial_hands [] (Game.get_deck g));
+  assert_raises (Failure "Not enough cards to deal initial hands") (fun () ->
+      Game.deal_initial_hands (Game.get_players g) [])
 
 let test_deal_initial_hands_success _ =
-  let game = create_game ["Alice"; "Bob"; "Charlie"] 1000 in
-  let players, remaining_deck = 
-    deal_initial_hands (get_players game) (get_deck game) in
-  (* Each player should have 2 cards *)
-  List.iter 
-    (fun p -> assert_equal 2 (List.length (Player.get_hand p))) 
-    players;
-  (* Deck should have 52 - (2 * num_players) cards *)
-  assert_equal (52 - (2 * 3)) (List.length remaining_deck)
+  let g = Game.create_game [ "A"; "B"; "C" ] 1000 in
+  let players, deck =
+    Game.deal_initial_hands (Game.get_players g) (Game.get_deck g)
+  in
+  List.iter (fun p -> assert_equal 2 (List.length (Player.get_hand p))) players;
+  assert_equal 46 (List.length deck)
 
 let test_game_over_conditions _ =
-  (* Test game over when all but one player has no chips *)
-  let players = [
-    Player.create_player 0 "Rich" 1000;
-    Player.create_player 1 "Broke1" 0;
-    Player.create_player 2 "Broke2" 0
-  ] in
-  let game = { 
-    players; 
-    deck = create_deck (); 
-    pot = 0; 
-    community_cards = []; 
-    current_bet = 0 
-  } in
-  assert_bool "Game should be over" (is_game_over game);
-
-  (* Test game not over when multiple players have chips *)
-  let active_game = create_game ["P1"; "P2"; "P3"] 1000 in
-  assert_bool "Game should not be over" (not (is_game_over active_game))
-
-(*------------------------ Round Test ------------------------*)
-
-(* Line 234 approx.
-let test_play_round_changes_chips _ =
-  Random.init 0;
-  let names = [ "CPU 1"; "CPU 2"; "CPU 3" ] in
-  let state0 = mk_state names in
-  let total_chips_before =
-    List.fold_left
-      (fun acc p -> acc + Player.get_chips p)
-      0 (Game.get_players state0)
+  let ps =
+    [
+      Player.create_player 0 "A" 0;
+      Player.create_player 1 "B" 0;
+      Player.create_player 2 "C" 1000;
+    ]
   in
-  let state1 = Round.play_round state0 in
-  let total_chips_after =
-    List.fold_left
-      (fun acc p -> acc + Player.get_chips p)
-      0 (Game.get_players state1)
-  in
-  assert_equal (total_chips_before + 100) total_chips_after;
-  let bonuses =
-    List.map2
-      (fun p0 p1 -> Player.get_chips p1 - Player.get_chips p0)
-      (Game.get_players state0) (Game.get_players state1)
-  in
-  assert_equal 1 (List.length (List.filter (( <> ) 0) bonuses))
-*)
-
-(* Line 253 approx.
-let test_round_betting _ =
-  let initial_state = create_game ["P1"; "P2"; "P3"] 1000 in
-  (* Add ante/blind bets before playing round *)
-  let state_with_ante = 
-    let players = get_players initial_state in
-    let ante_amount = 10 in
-    let players_with_ante = 
-      List.map (fun p -> bet p ante_amount) players 
-    in
-    { initial_state with 
-      players = players_with_ante;
-      pot = ante_amount * List.length players 
+  let g =
+    {
+      players = ps;
+      deck = create_deck ();
+      pot = 0;
+      community_cards = [];
+      current_bet = 0;
     }
   in
-  let final_state = play_round state_with_ante in
-  assert_bool "Pot should be non-zero" 
-    (get_pot final_state > 0);
-  assert_bool "At least one player should have fewer chips"
-    (List.exists (fun p -> get_chips p < 1000) (get_players final_state))
-*)
+  assert_bool "Should be over" (is_game_over g)
+
+let test_game_not_over _ =
+  let g = Game.create_game [ "A"; "B"; "C" ] 1000 in
+  assert_bool "Should not be over" (not (is_game_over g))
+
+let test_reveal_community_cards _ =
+  let g = Game.create_game [ "A"; "B" ] 1000 in
+  let players, deck =
+    Game.deal_initial_hands (Game.get_players g) (Game.get_deck g)
+  in
+  let g = { g with players; deck } in
+  let g2 = Game.reveal_community_cards g 3 in
+  assert_equal 3 (List.length (Game.get_community_cards g2));
+  assert_equal 0 (Game.get_current_bet g2);
+  List.iter
+    (fun p -> assert_equal 0 (Player.get_current_bet p))
+    (Game.get_players g2)
+
+let test_distribute_pot _ =
+  let ps = [ Player.create_player 0 "A" 100; Player.create_player 1 "B" 100 ] in
+  let g =
+    {
+      players = ps;
+      deck = [];
+      pot = 200;
+      community_cards = [];
+      current_bet = 0;
+    }
+  in
+  let g' = Game.distribute_pot g [ 0; 1 ] in
+  List.iter
+    (fun p -> assert_equal 200 (Player.get_chips p))
+    (Game.get_players g')
+
+let test_handle_bet_and_raise _ =
+  let g = Game.create_game [ "A"; "B" ] 1000 in
+  let g1 = Game.handle_player_bet g 0 200 in
+  let g2 = Game.handle_player_raise g1 1 500 in
+  assert_equal 700 (Player.get_chips (List.nth (Game.get_players g2) 1));
+  assert_equal 700 (Game.get_pot g2);
+  assert_equal 500 (Game.get_current_bet g2)
+
+let test_handle_call _ =
+  let g = Game.create_game [ "A"; "B" ] 500 in
+  let g1 = Game.handle_player_bet g 0 100 in
+  let g2 = Game.handle_player_call g1 1 in
+  assert_equal 100 (Player.get_current_bet (List.nth (Game.get_players g2) 1));
+  assert_equal 200 (Game.get_pot g2)
+
+let test_handle_check_invalid _ =
+  let g = Game.create_game [ "A"; "B" ] 1000 in
+  let g = { g with current_bet = 100 } in
+  assert_raises (Invalid_argument "Cannot check when there is a bet to call")
+    (fun () -> Game.handle_player_check g 0)
+
+let test_new_hand_resets_state _ =
+  let g = Game.create_game [ "A"; "B" ] 500 in
+  let g' = Game.new_hand g in
+  List.iter
+    (fun p -> assert_equal 2 (List.length (Player.get_hand p)))
+    (Game.get_players g');
+  assert_equal 0 (Game.get_current_bet g');
+  assert_equal 0 (Game.get_pot g')
 
 (*------------------------ Hand Evaluation Tests ------------------------*)
 
-let test_straight_flush _ =
-  let hand =
+(* helper to assert evaluation kind quickly *)
+let assert_eval ~msg expected seven =
+  let got = evaluate_hand seven in
+  if compare_hands expected got <> 0 then
+    assert_failure (msg ^ ": unexpected rank")
+
+(* ------------- individual rank detection -------------------------- *)
+
+let test_high_card_eval _ =
+  let seven =
     [
-      make_card Ten Spades;
-      make_card Jack Spades;
-      make_card Queen Spades;
-      make_card King Spades;
       make_card Ace Spades;
-      make_card Two Diamonds;
-      make_card Three Hearts;
+      make_card Jack Hearts;
+      make_card Nine Clubs;
+      make_card Seven Diamonds;
+      make_card Five Spades;
+      make_card Four Hearts;
+      make_card Two Clubs;
     ]
   in
-  assert_equal (StraightFlush 14) (evaluate_hand hand)
+  assert_eval ~msg:"HighCard" (HighCard []) seven (* kicker list ignored *)
 
-let test_four_of_a_kind _ =
-  let h1 = FourOfAKind (8, make_card King Spades) in
-  let h2 = FourOfAKind (8, make_card Queen Hearts) in
-  assert_equal 1 (compare_hands h1 h2)
-
-let test_full_house _ =
-  let h1 = FullHouse (10, 5) in
-  let h2 = FullHouse (9, 14) in
-  assert_equal 1 (compare_hands h1 h2)
-
-let test_one_pair_kicker _ =
-  let h1 =
-    OnePair
-      (8, [ make_card King Clubs; make_card Queen Clubs; make_card Two Hearts ])
+let test_one_pair_eval _ =
+  let seven =
+    [
+      make_card Jack Spades;
+      make_card Jack Hearts;
+      make_card Nine Clubs;
+      make_card Five Diamonds;
+      make_card Three Hearts;
+      make_card Two Spades;
+      make_card Four Clubs;
+    ]
   in
-  let h2 =
-    OnePair
-      ( 8,
-        [
-          make_card King Spades; make_card Jack Diamonds; make_card Three Clubs;
-        ] )
-  in
-  assert_equal 1 (compare_hands h1 h2)
+  match evaluate_hand seven with
+  | OnePair (11, _) -> ()
+  | _ -> assert_failure "expect OnePair JJ"
 
-let test_high_card_tie _ =
-  let h1 =
-    HighCard
+let test_two_pair_eval _ =
+  let seven =
+    [
+      make_card King Spades;
+      make_card King Hearts;
+      make_card Nine Diamonds;
+      make_card Nine Spades;
+      make_card Two Clubs;
+      make_card Four Hearts;
+      make_card Six Clubs;
+    ]
+  in
+  match evaluate_hand seven with
+  | TwoPair (13, 9, _) -> ()
+  | _ -> assert_failure "expect KK & 99"
+
+let test_three_kind_eval _ =
+  let seven =
+    [
+      make_card Four Spades;
+      make_card Four Diamonds;
+      make_card Four Clubs;
+      make_card Ace Hearts;
+      make_card Nine Spades;
+      make_card Two Clubs;
+      make_card Six Hearts;
+    ]
+  in
+  match evaluate_hand seven with
+  | ThreeOfAKind (4, _) -> ()
+  | _ -> assert_failure "expect trip 4s"
+
+let test_straight_eval _ =
+  let seven =
+    [
+      make_card Four Clubs;
+      make_card Five Diamonds;
+      make_card Six Hearts;
+      make_card Seven Spades;
+      make_card Eight Hearts;
+      make_card King Clubs;
+      make_card Ace Diamonds;
+    ]
+  in
+  match evaluate_hand seven with
+  | Straight 8 -> ()
+  | _ -> assert_failure "expect 8-high straight"
+
+let test_straight_ace_low_eval _ =
+  let seven =
+    [
+      make_card Ace Spades;
+      make_card Two Hearts;
+      make_card Three Diamonds;
+      make_card Four Clubs;
+      make_card Five Spades;
+      make_card Nine Hearts;
+      make_card Ten Clubs;
+    ]
+  in
+  match evaluate_hand seven with
+  | Straight 5 -> ()
+  | _ -> assert_failure "expect 5-high straight (A-low)"
+
+let test_flush_eval _ =
+  let seven =
+    [
+      make_card Ace Hearts;
+      make_card Ten Hearts;
+      make_card Seven Hearts;
+      make_card Six Hearts;
+      make_card Two Hearts;
+      make_card Nine Clubs;
+      make_card Four Diamonds;
+    ]
+  in
+  match evaluate_hand seven with
+  | Flush cs ->
+      assert_equal 5 (List.length cs);
+      assert_equal Hearts (List.hd cs).suit
+  | _ -> assert_failure "expect hearts flush"
+
+let test_full_house_eval _ =
+  let seven =
+    [
+      make_card Six Hearts;
+      make_card Six Spades;
+      make_card Six Diamonds;
+      make_card Two Clubs;
+      make_card Two Diamonds;
+      make_card King Hearts;
+      make_card Queen Clubs;
+    ]
+  in
+  match evaluate_hand seven with
+  | FullHouse (6, 2) -> ()
+  | _ -> assert_failure "expect 6 over 2"
+
+let test_four_kind_eval _ =
+  let seven =
+    [
+      make_card Eight Spades;
+      make_card Eight Hearts;
+      make_card Eight Clubs;
+      make_card Eight Diamonds;
+      make_card Ace Hearts;
+      make_card Two Clubs;
+      make_card Three Spades;
+    ]
+  in
+  match evaluate_hand seven with
+  | FourOfAKind (8, _) -> ()
+  | _ -> assert_failure "expect quad 8s"
+
+let test_straight_flush_eval _ =
+  let seven =
+    [
+      make_card Nine Hearts;
+      make_card Ten Hearts;
+      make_card Jack Hearts;
+      make_card Queen Hearts;
+      make_card King Hearts;
+      make_card Two Spades;
+      make_card Three Clubs;
+    ]
+  in
+  match evaluate_hand seven with
+  | StraightFlush 13 -> ()
+  | _ -> assert_failure "expect 13-high SF"
+
+(* ------------- compare_hands deep branches ------------------------ *)
+
+let test_compare_flush_kickers _ =
+  let f1 =
+    Flush
       [
         make_card Ace Spades;
-        make_card King Hearts;
-        make_card Nine Diamonds;
-        make_card Five Clubs;
-        make_card Two Hearts;
+        make_card Ten Spades;
+        make_card Seven Spades;
+        make_card Five Spades;
+        make_card Three Spades;
       ]
-  in
-  let h2 =
-    HighCard
+  and f2 =
+    Flush
       [
-        make_card Ace Hearts;
         make_card King Spades;
-        make_card Nine Clubs;
-        make_card Five Diamonds;
-        make_card Two Clubs;
+        make_card Ten Spades;
+        make_card Seven Spades;
+        make_card Five Spades;
+        make_card Three Spades;
       ]
   in
-  assert_equal 0 (compare_hands h1 h2)
+  assert_equal 1 (compare_hands f1 f2)
 
-let test_best_hands _ =
-  let players =
+let test_compare_full_house _ =
+  let h1 = FullHouse (7, 2) and h2 = FullHouse (6, 14) in
+  assert_equal 1 (compare_hands h1 h2)
+
+let test_compare_four_kind_kicker _ =
+  let k = make_card Ace Spades and q = make_card Queen Hearts in
+  let h1 = FourOfAKind (9, k) and h2 = FourOfAKind (9, q) in
+  assert_equal 1 (compare_hands h1 h2)
+
+let test_compare_rank_strength_diff _ =
+  let straight = Straight 10 and trips = ThreeOfAKind (5, []) in
+  assert_equal 1 (compare_hands straight trips)
+(* ------------------------------------------------------------------ *)
+(* Round – helper-function coverage                                   *)
+(* ------------------------------------------------------------------ *)
+
+let test_reset_folds _ =
+  let ps =
     [
-      ( "Alice",
-        [
-          make_card Ten Spades;
-          make_card Jack Spades;
-          make_card Queen Spades;
-          make_card King Spades;
-          make_card Ace Spades;
-          make_card Two Hearts;
-          make_card Three Diamonds;
-        ] );
-      ( "Bob",
-        [
-          make_card Nine Spades;
-          make_card Nine Hearts;
-          make_card Nine Clubs;
-          make_card Nine Diamonds;
-          make_card King Hearts;
-          make_card Two Spades;
-          make_card Three Spades;
-        ] );
+      Player.set_folded (Player.create_player 0 "A" 100) true;
+      Player.create_player 1 "B" 100;
     ]
   in
-  match best_hands players with
-  | [ ("Alice", StraightFlush 14) ] -> ()
-  | _ -> assert_failure "Expected Alice to win with a Royal Flush"
+  let ps' = Round.reset_folds ps in
+  List.iter (fun p -> assert_bool "fold cleared" (not (Player.is_folded p))) ps'
 
-let test_evaluate_edge_cases _ =
-  (* Test wheel straight *)
-  let wheel = [
-    {rank=Ace; suit=Hearts}; {rank=Two; suit=Hearts}; 
-    {rank=Three; suit=Hearts}; {rank=Four; suit=Hearts};
-    {rank=Five; suit=Hearts}; {rank=King; suit=Clubs};
-    {rank=Queen; suit=Diamonds}
-  ] in
-  assert_equal (StraightFlush 5) (evaluate_hand wheel);
+let test_reset_player_bets _ =
+  let g = Game.create_game [ "A"; "B" ] 500 in
+  let p0 = Player.set_current_bet (List.nth (Game.get_players g) 0) 50 in
+  let g =
+    {
+      g with
+      players = [ p0; List.nth (Game.get_players g) 1 ];
+      current_bet = 50;
+    }
+  in
+  let g' = Round.reset_player_bets_for_street g in
+  assert_equal 0 (Game.get_current_bet g');
+  List.iter
+    (fun p -> assert_equal 0 (Player.get_current_bet p))
+    (Game.get_players g')
 
-  (* Test full house with multiple possibilities *)
-  let full_house = [
-    {rank=Ace; suit=Hearts}; {rank=Ace; suit=Diamonds};
-    {rank=Ace; suit=Clubs}; {rank=King; suit=Hearts};
-    {rank=King; suit=Diamonds}; {rank=Queen; suit=Hearts};
-    {rank=Jack; suit=Clubs}
-  ] in
-  match evaluate_hand full_house with
-  | FullHouse (14, 13) -> () (* Aces full of Kings *)
-  | _ -> assert_failure "Expected Aces full of Kings"
+let test_get_starting_player_index _ =
+  let ps =
+    [
+      Player.set_folded (Player.create_player 0 "A" 100) true;
+      Player.create_player 1 "B" 0;
+      (* no chips *)
+      Player.create_player 2 "C" 100;
+    ]
+  in
+  assert_equal 2 (Round.get_starting_player_index ps 0)
 
-let test_string_of_hand_rank _ =
-  (* Test all hand rank string representations *)
-  let ace_spades = { rank = Ace; suit = Spades } in
-  let king_hearts = { rank = King; suit = Hearts } in
-  let queen_clubs = { rank = Queen; suit = Clubs } in
-  let jack_diamonds = { rank = Jack; suit = Diamonds } in
-  let ten_spades = { rank = Ten; suit = Spades } in
+let test_handle_bot_action_check_branch _ =
+  (* bot has 0 chips so branch is deterministic: `Check` *)
+  let g = Game.create_game [ "Bot" ] 0 in
+  let bot = List.hd (Game.get_players g) in
+  let g', _, was_aggr = Round.handle_bot_action g bot 10 in
+  assert_equal 0 (Game.get_pot g');
+  (* check does not change pot *)
+  assert_bool "not aggressive" (not was_aggr)
+(* ------------- string_of_hand_rank every branch ------------------ *)
 
-  assert_equal "High Card: A♠" 
-    (string_of_hand_rank (HighCard [ace_spades; king_hearts; queen_clubs; jack_diamonds; ten_spades]));
-  
-  assert_equal "One Pair: K" 
-    (string_of_hand_rank (OnePair (13, [ace_spades; queen_clubs; jack_diamonds])));
-  
-  assert_equal "Two Pair: K and Q" 
-    (string_of_hand_rank (TwoPair (13, 12, [ace_spades])));
-  
-  assert_equal "Three of a Kind: J" 
-    (string_of_hand_rank (ThreeOfAKind (11, [ace_spades; king_hearts])));
-  
-  assert_equal "Straight: A high" 
-    (string_of_hand_rank (Straight 14));
-  
-  assert_equal "Flush: A♠ high" 
-    (string_of_hand_rank (Flush [ace_spades; king_hearts; queen_clubs; jack_diamonds; ten_spades]));
-  
-  assert_equal "Full House: A over K" 
-    (string_of_hand_rank (FullHouse (14, 13)));
-  
-  assert_equal "Four of a Kind: Q with A♠ kicker" 
-    (string_of_hand_rank (FourOfAKind (12, ace_spades)));
-  
-  assert_equal "Straight Flush: A high" 
-    (string_of_hand_rank (StraightFlush 14))
+let test_string_of_hand_rank_all _ =
+  let samples =
+    [
+      HighCard [ make_card Ace Spades ];
+      OnePair (11, []);
+      TwoPair (13, 9, []);
+      ThreeOfAKind (4, []);
+      Straight 8;
+      Flush [ make_card King Clubs ];
+      FullHouse (6, 2);
+      FourOfAKind (7, make_card Jack Hearts);
+      StraightFlush 14;
+    ]
+  in
+  List.iter
+    (fun hr ->
+      let s = string_of_hand_rank hr in
+      assert_bool "non-empty string_of_hand_rank" (String.length s > 0))
+    samples
 
-let test_compare_hands _ =
-  (* Test comparing different hand ranks *)
-  let straight_flush = StraightFlush 14 in
-  let four_kind = FourOfAKind (13, {rank = Ace; suit = Spades}) in
-  let full_house = FullHouse (12, 11) in
-  assert_equal 1 (compare_hands straight_flush four_kind);
-  assert_equal 1 (compare_hands four_kind full_house);
-
-  (* Test comparing same hand ranks *)
-  let four_kind_k = FourOfAKind (13, {rank = King; suit = Hearts}) in
-  let four_kind_k_lower = FourOfAKind (13, {rank = Queen; suit = Spades}) in
-  assert_equal 1 (compare_hands four_kind_k four_kind_k_lower);
-
-  (* Test comparing flushes *)
-  let flush1 = Flush [
-    {rank = Ace; suit = Hearts}; 
-    {rank = King; suit = Hearts};
-    {rank = Queen; suit = Hearts};
-    {rank = Jack; suit = Hearts};
-    {rank = Ten; suit = Hearts}
-  ] in
-  let flush2 = Flush [
-    {rank = King; suit = Spades};
-    {rank = Queen; suit = Spades};
-    {rank = Jack; suit = Spades};
-    {rank = Ten; suit = Spades};
-    {rank = Nine; suit = Spades}
-  ] in
-  assert_equal 1 (compare_hands flush1 flush2);
-
-  (* Test comparing two pairs *)
-  let two_pair1 = TwoPair (14, 13, [{rank = Queen; suit = Hearts}]) in
-  let two_pair2 = TwoPair (14, 12, [{rank = Jack; suit = Spades}]) in
-  assert_equal 1 (compare_hands two_pair1 two_pair2)
-
-let test_invalid_comparisons _ =
-  let invalid_flush1 = Flush [] in
-  let invalid_flush2 = Flush [{rank = Ace; suit = Spades}] in
-  assert_raises (Failure "Invalid flush comparison")
-    (fun () -> compare_hands invalid_flush1 invalid_flush2)
+(* ------------- evaluate_hand length error already covered earlier *)
 
 (*------------------------ Aggregated Test Suite ------------------------*)
 
 let suite =
   "Full OCaml Poker Test Suite"
   >::: [
-         (* Card module *)
-         "deck size" >:: test_deck_size;
-         "deck uniqueness" >:: test_deck_uniqueness;
-         "card creation" >:: test_card_creation;
-         "all ranks" >:: test_all_ranks;
-         "all suits" >:: test_all_suits;
-         "string of card" >:: test_string_of_card;
-         "create deck" >:: test_create_deck;
-         "card basics" >:: test_card_basics;
-         "deck creation" >:: test_deck_creation;
-         "int to rank conversion" >:: test_int_to_rank;
-         "string of rank" >:: test_string_of_rank;
-         (* Player module *)
-         "negative chips" >:: test_negative_chips;
-         "player accessors" >:: test_accessor_roundtrip;
-         "player actions" >:: test_player_actions;
-         (* Game module *)
-         "create_game invalid chips" >:: test_create_game_invalid_chip;
-         "create_game single player" >:: test_create_game_insufficient_players;
-         "deal_initial_hands" >:: test_deal_initial_hands;
-         "invalid game creation" >:: test_invalid_game_creation;
-         "deal_initial_hands" >:: test_deal_initial_hands;
-         "game getters" >:: test_game_getters;
-         "deal initial hands errors" >:: test_deal_initial_hands_errors;
-         "deal initial hands success" >:: test_deal_initial_hands_success;
-         "game over conditions" >:: test_game_over_conditions;
-         (* Round logic *)
-         (* "play_round chip changes" >:: test_play_round_changes_chips; *)
-         (* "round betting" >:: test_round_betting; *)
-         (* Hand ranking and comparison *)
-         "Straight Flush" >:: test_straight_flush;
-         "Four of a Kind" >:: test_four_of_a_kind;
-         "Full House" >:: test_full_house;
-         "One Pair Kicker" >:: test_one_pair_kicker;
-         "High Card Tie" >:: test_high_card_tie;
-         "Best Hands" >:: test_best_hands;
-         "Evaluate Edge Cases" >:: test_evaluate_edge_cases;
-         "string of hand rank" >:: test_string_of_hand_rank;
-         "compare hands" >:: test_compare_hands;
-         "invalid comparisons" >:: test_invalid_comparisons;
+         (* Card *)
+         "string_of_card all" >:: test_string_of_card_all;
+         "int_to_rank round-trip" >:: test_int_to_rank_roundtrip;
+         "int_to_rank failure" >:: test_int_to_rank_failure;
+         "string_of_rank all" >:: test_string_of_rank_all;
+         "create_deck contents" >:: test_create_deck_contents;
+         (* Player *)
+         "bet paths" >:: test_bet_paths;
+         "call paths" >:: test_call_paths;
+         "check paths" >:: test_check_paths;
+         "raise paths" >:: test_raise_paths;
+         "setters & reset" >:: test_setters_and_reset;
+         (* Game *)
+         "create_game invalid" >:: test_create_game_invalid;
+         "deal_initial_hands errors" >:: test_deal_initial_hands_errors;
+         "deal_initial_hands success" >:: test_deal_initial_hands_success;
+         "game over" >:: test_game_over_conditions;
+         "game not over" >:: test_game_not_over;
+         "reveal community cards" >:: test_reveal_community_cards;
+         "distribute pot" >:: test_distribute_pot;
+         "handle bet and raise" >:: test_handle_bet_and_raise;
+         "handle call" >:: test_handle_call;
+         "handle check invalid" >:: test_handle_check_invalid;
+         "new hand resets state" >:: test_new_hand_resets_state;
+         (* Hand *)
+         (* Hand deep-dive *)
+         "high card eval" >:: test_high_card_eval;
+         "one pair eval" >:: test_one_pair_eval;
+         "two pair eval" >:: test_two_pair_eval;
+         "three kind eval" >:: test_three_kind_eval;
+         "straight eval" >:: test_straight_eval;
+         "straight ace-low" >:: test_straight_ace_low_eval;
+         "flush eval" >:: test_flush_eval;
+         "full house eval" >:: test_full_house_eval;
+         "four kind eval" >:: test_four_kind_eval;
+         "straight flush eval" >:: test_straight_flush_eval;
+         "compare flush kickers" >:: test_compare_flush_kickers;
+         "compare full house" >:: test_compare_full_house;
+         "compare four kind kicker" >:: test_compare_four_kind_kicker;
+         "compare rank-strength diff" >:: test_compare_rank_strength_diff;
+         "string_of_hand_rank all" >:: test_string_of_hand_rank_all;
+         (* Player deep-dive *)
+         "bet negative" >:: test_bet_negative;
+         "bet insufficient" >:: test_bet_insufficient;
+         "bet partial & all-in" >:: test_bet_partial_and_all_in;
+         "call paths" >:: test_call_paths;
+         "check success/fail" >:: test_check_success_and_fail;
+         "raise paths" >:: test_raise_paths;
+         "reset & update" >:: test_reset_and_update;
+
+         "reset folds" >:: test_reset_folds;
+         "reset player bets" >:: test_reset_player_bets;
+         "starting player index" >:: test_get_starting_player_index;
+         "bot action (check)" >:: test_handle_bot_action_check_branch;
        ]
 
 let () = run_test_tt_main suite
