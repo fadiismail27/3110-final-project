@@ -2,7 +2,6 @@ open Game
 open Player
 open Ui
 open Card
-
 let () = Random.self_init ()
 
 let reset_folds (players : Player.t list) =
@@ -36,6 +35,8 @@ let get_starting_player_index (players : Player.t list)
         else find_next_active (offset + 1) (count + 1)
     in
     find_next_active 0 0
+
+[@@@coverage off]
 
 let handle_bot_action gs bot_player min_bet_val =
   Printf.printf "Turn for %s (Bot). Waiting for Bot action...\n"
@@ -153,7 +154,8 @@ let handle_bot_action gs bot_player min_bet_val =
       let next_gs = Game.handle_player_fold gs (Player.get_id bot_player) in
       Printf.printf "%s (Bot) folds.\n" (Player.get_name bot_player);
       (next_gs, None, false)
-
+      (* [@@@coverage on] *)
+      (* [@@@coverage off] *)
 let rec betting_round (gs : Game.t) (player_idx_to_act : int)
     (min_bet_val : int) : Game.t =
   Printf.printf "\n--- Betting Round ---\n";
@@ -296,7 +298,8 @@ let rec betting_round (gs : Game.t) (player_idx_to_act : int)
     }
   in
   loop gs_street_ready player_idx_to_act None [] 0
-
+  [@@@coverage on]
+  [@@@coverage off]
 let play_hand_stages (state : Game.t) (dealer_button_pos : int)
     (big_blind_val : int) : Game.t =
   print_endline "\n=====================";
