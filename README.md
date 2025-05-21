@@ -42,5 +42,7 @@ dune exec bin/main.exe
 - Fadi Ismail (fmi4)
 - Timothy Adeyemi (ota4)
 
+📚 **Cornell University | INFO 4300: Language & Information**
+
 
 
